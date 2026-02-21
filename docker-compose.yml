@@ -1,29 +1,29 @@
-version: '3.5'
-
 services:
 
   namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3
     container_name: namenode
+    hostname: namenode
+    command: ["hdfs", "namenode"]
     ports:
       - "9870:9870"
       - "9000:9000"
     volumes:
-      - namenode_data:/hadoop/dfs/name
-    environment:
-      - CLUSTER_NAME=mini-projet-bd
+      - ./scripts:/opt/scripts      # ← important
+      # - ./flume:/opt/flume
+      # - ./mapreduce:/opt/mapreduce
+      # - ./mysql/setup_mysql.sql:/opt/scripts/setup_mysql.sql
     env_file:
       - ./hadoop.env
+    environment:
+      ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
     networks:
       - hadoop
 
   datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3
     container_name: datanode
-    volumes:
-      - datanode_data:/hadoop/dfs/data
-    environment:
-      SERVICE_PRECONDITION: "namenode:9000"
+    command: ["hdfs", "datanode"]
     env_file:
       - ./hadoop.env
     depends_on:
@@ -32,12 +32,11 @@ services:
       - hadoop
 
   resourcemanager:
-    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3
     container_name: resourcemanager
+    command: ["yarn", "resourcemanager"]
     ports:
       - "8088:8088"
-    environment:
-      SERVICE_PRECONDITION: "namenode:9000 namenode:9870"
     env_file:
       - ./hadoop.env
     depends_on:
@@ -46,10 +45,9 @@ services:
       - hadoop
 
   nodemanager:
-    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3
     container_name: nodemanager
-    environment:
-      SERVICE_PRECONDITION: "namenode:9000 resourcemanager:8088"
+    command: ["yarn", "nodemanager"]
     env_file:
       - ./hadoop.env
     depends_on:
@@ -60,27 +58,21 @@ services:
   mysql:
     image: mysql:8.0
     container_name: mysql
-    restart: always
     ports:
       - "3306:3306"
-
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: bigdata
       MYSQL_USER: bduser
       MYSQL_PASSWORD: bdpass
-
     volumes:
       - mysql_data:/var/lib/mysql
-
+      - ./mysql/setup_mysql.sql:/docker-entrypoint-initdb.d/setup_mysql.sql
     networks:
       - hadoop
-
 
 networks:
   hadoop:
 
 volumes:
-  namenode_data:
-  datanode_data:
   mysql_data:
